@@ -12,6 +12,8 @@ extern "C" {
 
 void on_callback(lv_event_t * e);
 void off_callback(lv_event_t * e);
+extern void turnOnMotor (int direction);
+extern void turnOffMotor();
 
 #ifdef __cplusplus
 } /*extern "C"*/

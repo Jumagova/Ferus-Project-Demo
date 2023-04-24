@@ -5,32 +5,13 @@
 
 #include "ui.h"
 
-#define DIR 21
-#define PULL 14
 
 void on_callback(lv_event_t *e)
 {
-	// Your code here
-	int x;
-	unsigned long currentMillis = 0;
-	const unsigned long period = 5; // set period to 5ms
-	int dutyCycle = 0;				// initial duty cycle value
-
-	// int period = 60000 / speed / 400; // calculate the period in milliseconds
-	digitalWrite(DIR, LOW); // set the direction
-	for (int x = 0; x < 200; x++)
-	{ // repeat 200 times a revolution when setting 400 on driver
-		unsigned long currentMillis = millis();
-		if (currentMillis % period == 0)
-		{												// if the period has passed
-			int dutyCycle = (dutyCycle == 0) ? 255 : 0; // toggle the duty cycle between 0 and 255
-			analogWrite(PULL, dutyCycle);				// set the duty cycle
-		}
-	}
+	turnOnMotor(0x0);
 }
 
 void off_callback(lv_event_t *e)
 {
-	// Your code here
-	analogWrite(PULL, 0); // set the duty cycle
+	turnOffMotor();
 }

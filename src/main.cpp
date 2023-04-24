@@ -1,22 +1,20 @@
-
-
 #include <Arduino.h>
-#include <screen_config.cpp>
+#include <screen_config.h>
 #include <lvgl.h>
-
-// #include <TFT_eSPI.h>
 #include "ui.h"
 
 #define DIR 21
 #define PULL 14
+#define MOTOR_OFF 0
+#define MOTOR_ON 1
+
+int motorState = MOTOR_OFF;
+int motorDirection = 0; // 0 for forward, 1 for reverse
+unsigned long motorPeriod = 5; // set period to 5ms
+unsigned long motorLastTime = 0;
+int motorDutyCycle = 0; // initial duty cycle value
 
 LGFX tft;
-
-/*If you want to use the LVGL examples,
-  make sure to install the lv_examples Arduino library
-  and uncomment the following line.
-#include <lv_examples.h>
-*/
 
 /*Change to your screen resolution*/
 static const uint16_t screenWidth = 480;
@@ -24,17 +22,6 @@ static const uint16_t screenHeight = 320;
 
 static lv_disp_draw_buf_t draw_buf;
 static lv_color_t buf[screenWidth * screenHeight / 10];
-
-// TFT_eSPI tft = TFT_eSPI(screenWidth, screenHeight); /* TFT instance */
-
-#if LV_USE_LOG != 0
-/* Serial debugging */
-void my_print(const char *buf)
-{
-  Serial.printf(buf);
-  Serial.flush();
-}
-#endif
 
 /* Display flushing */
 void my_disp_flush(lv_disp_drv_t *disp, const lv_area_t *area, lv_color_t *color_p)
@@ -44,20 +31,16 @@ void my_disp_flush(lv_disp_drv_t *disp, const lv_area_t *area, lv_color_t *color
 
   tft.startWrite();
   tft.setAddrWindow(area->x1, area->y1, w, h);
-  tft.pushColors((uint16_t *)&color_p->full, w * h, true);
+  tft.writePixels((lgfx::rgb565_t *)&color_p->full, w * h);
   tft.endWrite();
-
   lv_disp_flush_ready(disp);
 }
 
 /*Read the touchpad*/
 void my_touchpad_read(lv_indev_drv_t *indev_driver, lv_indev_data_t *data)
 {
-  uint16_t touchX = 0, touchY = 0;
-
-  // bool touched = false; // tft.getTouch( &touchX, &touchY, 600 );
-  bool touched = tft.getTouch(&touchX, &touchY, 600);
-
+  uint16_t touchX, touchY;
+  bool touched = tft.getTouch(&touchX, &touchY);
   if (!touched)
   {
     data->state = LV_INDEV_STATE_REL;
@@ -65,18 +48,38 @@ void my_touchpad_read(lv_indev_drv_t *indev_driver, lv_indev_data_t *data)
   else
   {
     data->state = LV_INDEV_STATE_PR;
-
-    /*Set the coordinates*/
     data->point.x = touchX;
     data->point.y = touchY;
-
-    Serial.print("Data x ");
-    Serial.println(touchX);
-
-    Serial.print("Data y ");
-    Serial.println(touchY);
   }
 }
+
+void updateMotor()
+{
+  unsigned long currentMillis = millis();
+  if (motorState == MOTOR_ON && currentMillis - motorLastTime >= motorPeriod)
+  {
+    motorDutyCycle = (motorDutyCycle == 0) ? 255 : 0;
+    analogWrite(PULL, motorDutyCycle);
+    motorLastTime = currentMillis;
+  }
+}
+
+void turnOnMotor(int direction)
+{
+  tft.setBrightness(255);
+  motorDirection = direction;
+  motorState = MOTOR_ON;
+  Serial.println("Motor ON");
+}
+
+void turnOffMotor()
+{
+  tft.setBrightness(255);
+  analogWrite(PULL, 255); // set duty cycle to a very low value
+  motorState = MOTOR_OFF;
+  Serial.println("Motor OFF");
+}
+
 
 void setup()
 {
@@ -91,14 +94,11 @@ void setup()
   pinMode(PULL, OUTPUT); // set PULL as PWM output
   pinMode(DIR, OUTPUT);  // set DIR as Direction
 
-  lv_init();
-
-#if LV_USE_LOG != 0
-  lv_log_register_print_cb(my_print); /* register print function for debugging */
-#endif
-
   tft.begin();        /* TFT init */
   tft.setRotation(3); /* Landscape orientation, flipped */
+  tft.setBrightness(255);
+
+  lv_init();
 
   lv_disp_draw_buf_init(&draw_buf, buf, NULL, screenWidth * screenHeight / 10);
 
@@ -127,5 +127,6 @@ void setup()
 void loop()
 {
   lv_timer_handler(); /* let the GUI do its work */
+  updateMotor();
   delay(5);
 }

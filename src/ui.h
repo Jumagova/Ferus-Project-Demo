@@ -23,7 +23,6 @@ extern "C" {
 #endif
 
 #include "ui_events.h"
-#include "arduino.h"
 
 
 
